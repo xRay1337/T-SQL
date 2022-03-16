@@ -1,0 +1,30 @@
+;WITH TableSize AS
+(
+	SELECT	t.OBJECT_ID AS [TableId],
+			--t.[Name] AS TableName,
+			p.[rows] AS [Кол-во строк],
+			SUM(a.total_pages) * 8  AS [Размер(KB)] --TotalSpaceKB
+			--,SUM(a.used_pages) * 8 AS [UsedSpace(KB)]
+	FROM sys.tables				AS t
+	JOIN sys.indexes			AS i ON t.OBJECT_ID = i.OBJECT_ID
+	JOIN sys.partitions			AS p ON i.OBJECT_ID = p.OBJECT_ID AND i.index_id = p.index_id
+	JOIN sys.allocation_units	AS a ON p.PARTITION_ID = a.container_id
+	WHERE t.is_ms_shipped = 0
+		--AND i.OBJECT_ID = 31739657
+	GROUP BY t.OBJECT_ID, t.[Name], p.[Rows]
+)
+SELECT	s.[name] AS [Схема],
+		o.[name] AS [Таблица],
+		CAST(o.modify_date AS DATE) AS [Дата модификации],
+		SUM([Кол-во строк]) AS [Кол-во строк],
+		SUM([Размер(KB)]) / 1024 AS [Размер(MB)],
+		CAST(ROUND(SUM([Размер(KB)]) / 1024.0 / 1024, 0) AS INT) AS [Размер(GB)],
+		CONCAT('SELECT TOP 100 * FROM ', QUOTENAME([s].[name]), '.', QUOTENAME([o].[name])) AS [SELECT]
+		--,CONCAT('DROP TABLE IF EXISTS ', QUOTENAME([s].[name]), '.', QUOTENAME([o].[name])) AS [DROP]
+FROM sys.objects	AS o
+JOIN sys.schemas	AS s ON o.SCHEMA_ID = s.SCHEMA_ID
+JOIN TableSize		AS TS ON o.OBJECT_ID = TS.TableId
+WHERE [type] = 'U'
+	AND o.[name] LIKE '%_FOR_DELETE'
+GROUP BY s.[name], o.[name], CAST(o.modify_date AS DATE)
+ORDER BY [Размер(MB)] DESC
