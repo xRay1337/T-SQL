@@ -1,0 +1,21 @@
+DECLARE @NameDB NVARCHAR(30) = (SELECT db_name(dbid) FROM  master.dbo.sysprocesses WHERE spid = @@spid)
+
+SELECT	@NameDB AS [DB]
+		,[SCHEMA_NAME]
+		,[TABLE]
+		,C.[NAME] AS [COLUMN]
+		,[COLUMN_ID] AS [COLUMN_N]
+		,CONCAT('[', @NameDB, ']', '.','[', [SCHEMA_NAME], ']', '.', '[', [TABLE], ']') AS [PATH]
+		,CONCAT('SELECT TOP (1000) * FROM ', '[', @NameDB, ']', '.','[', [SCHEMA_NAME], ']', '.', '[', [TABLE], ']') AS [QUERY]
+		--,[SCHEMA_NAME]
+FROM sys.all_columns AS C
+JOIN (	SELECT  sys.objects.[NAME] AS [TABLE]
+				,sys.objects.[OBJECT_ID]
+				,sys.schemas.[NAME] AS [SCHEMA_NAME]
+				,N'1' AS I
+		FROM sys.objects
+		JOIN sys.schemas ON sys.objects.schema_id = sys.schemas.schema_id
+		WHERE type = 'U'
+) AS [SubQ] ON C.[OBJECT_ID] = [SubQ].[OBJECT_ID]
+--JOIN CTE_BD ON [CTE_TB].I = CTE_BD.I
+ORDER BY [TABLE], [COLUMN_ID]
