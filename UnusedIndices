@@ -1,0 +1,20 @@
+SELECT	obj.name AS Table_name,
+		idx.name AS Index_name,
+		ius.user_seeks,
+		ius.user_scans,
+		ius.user_updates,
+		CAST(ROUND(alc.total_pages * 8 / 1024.0, 1) AS decimal(6, 1)) AS [Размер(МБ)],
+		CONCAT('DROP INDEX IF EXISTS [', idx.name, '] ON [', obj.name, ']') AS [DROP INDEX]
+FROM sys.dm_db_index_usage_stats AS ius
+JOIN sys.objects AS obj ON obj.OBJECT_ID = ius.OBJECT_ID
+JOIN sys.indexes AS idx ON idx.index_id = ius.index_id
+	AND idx.OBJECT_ID = ius.OBJECT_ID
+JOIN sys.partitions AS ptn ON ptn.OBJECT_ID = idx.OBJECT_ID
+	AND ptn.index_id = idx.index_id
+JOIN sys.allocation_units AS alc ON alc.container_id = ptn.PARTITION_ID
+WHERE ius.user_lookups = 0
+	AND ius.user_seeks = 0
+    AND ius.user_scans = 0
+	AND idx.type_desc = 'NONCLUSTERED'
+--ORDER BY ius.user_updates DESC
+ORDER BY alc.total_pages DESC
